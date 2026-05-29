@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>YTDL</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #000;
+  --s1: #0d0d0d;
+  --s2: #161616;
+  --s3: #222;
+  --border: #2a2a2a;
+  --accent: #FF3B1F;
+  --accent-dim: rgba(255,59,31,0.1);
+  --text: #f2f2f2;
+  --muted: #555;
+  --muted2: #888;
+  --green: #00e676;
+  --yellow: #ffab40;
+  --syne: 'Syne', sans-serif;
+  --mono: 'Space Mono', monospace;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+html, body { background: var(--bg); color: var(--text); font-family: var(--syne); min-height: 100dvh; overflow-x: hidden; }
+
+.shell { display: flex; flex-direction: column; min-height: 100dvh; padding-top: var(--safe-t); }
+
+/* NAV */
+.nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px 12px;
+  background: rgba(0,0,0,0.95);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 20;
+}
+.logo { font-family: var(--syne); font-weight: 800; font-size: 19px; letter-spacing: -0.3px; }
+.logo em { color: var(--accent); font-style: normal; }
+
+.instance-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--s2); border: 1px solid var(--border); border-radius: 20px;
+  padding: 5px 11px; cursor: pointer;
+  font-family: var(--mono); font-size: 9px; color: var(--muted2); letter-spacing: 0.5px;
+  transition: border-color 0.2s;
+}
+.instance-pill:active { border-color: var(--accent); }
+.status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.status-dot.ok { background: var(--green); box-shadow: 0 0 5px var(--green); animation: blink 2.5s ease-in-out infinite; }
+.status-dot.err { background: var(--accent); box-shadow: 0 0 5px var(--accent); }
+.status-dot.loading { background: var(--yellow); animation: blink 0.8s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+/* BODY */
+.scroll-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(110px + var(--safe-b)); }
+
+/* URL ZONE */
+.url-zone { padding: 18px 16px 0; }
+.section-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 9px; }
+
+.input-wrap {
+  background: var(--s2); border: 1.5px solid var(--border); border-radius: 13px;
+  display: flex; align-items: center; overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-wrap.focused { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,59,31,0.08); }
+
+.url-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+  padding: 15px 14px; line-height: 1.4;
+}
+.url-input::placeholder { color: var(--muted); }
+
+.clear-btn {
+  background: var(--s3); border: none; color: var(--muted2);
+  width: 30px; height: 30px; border-radius: 50%; font-size: 13px;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; margin-right: 10px; flex-shrink: 0;
+}
+.url-input:not(:placeholder-shown) + .clear-btn { display: flex; }
+
+.go-btn {
+  width: 100%; margin-top: 11px;
+  background: var(--accent); border: none; color: #fff;
+  font-family: var(--syne); font-weight: 700; font-size: 15px; letter-spacing: 1px;
+  padding: 16px; border-radius: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  position: relative; overflow: hidden; transition: opacity 0.15s;
+}
+.go-btn:active { opacity: 0.85; }
+.go-btn:disabled { background: var(--s2); color: var(--muted); }
+
+/* QUALITY + MODE */
+.options-row { display: flex; gap: 10px; padding: 16px 16px 0; }
+.options-col { flex: 1; }
+
+.chip-scroll { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chip-scroll::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex-shrink: 0; background: var(--s2); border: 1.5px solid var(--border);
+  border-radius: 30px; padding: 8px 14px; cursor: pointer;
+  font-family: var(--syne); font-weight: 600; font-size: 12px; color: var(--muted2);
+  white-space: nowrap; transition: all 0.15s;
+}
+.chip:active { transform: scale(0.94); }
+.chip.sel { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
+
+/* ERROR / STATUS */
+.toast {
+  margin: 12px 16px 0; border-radius: 11px; padding: 11px 14px;
+  font-family: var(--mono); font-size: 11px; line-height: 1.5;
+  display: none;
+}
+.toast.err { background: rgba(255,59,31,0.09); border: 1px solid rgba(255,59,31,0.25); color: #ff7055; }
+.toast.warn { background: rgba(255,171,64,0.09); border: 1px solid rgba(255,171,64,0.25); color: var(--yellow); }
+.toast.ok { background: rgba(0,230,118,0.07); border: 1px solid rgba(0,230,118,0.2); color: var(--green); }
+
+/* PROGRESS */
+.prog-card {
+  margin: 14px 16px 0; background: var(--s1); border: 1px solid var(--border);
+  border-radius: 16px; padding: 18px; display: none; animation: up 0.3s ease both;
+}
+.prog-card.show { display: block; }
+
+.prog-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 13px; }
+.prog-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted2); }
+.prog-label.active { color: var(--accent); }
+.prog-label.done { color: var(--green); }
+.prog-pct { font-family: var(--syne); font-weight: 800; font-size: 30px; line-height: 1; }
+
+.prog-track { height: 3px; background: var(--s3); border-radius: 2px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+.prog-fill.done { background: var(--green); }
+
+/* HISTORY */
+.history { padding: 22px 16px 0; display: none; animation: up 0.3s ease both; }
+.history.show { display: block; }
+.hist-head { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 11px; }
+
+.h-item {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--s1); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 13px; margin-bottom: 7px;
+}
+.h-icon { width: 32px; height: 32px; background: var(--accent-dim); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 15px; flex-shrink: 0; }
+.h-body { flex: 1; min-width: 0; }
+.h-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.h-meta { font-family: var(--mono); font-size: 9px; color: var(--muted2); }
+
+/* INSTANCE MODAL */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100;
+  display: none; align-items: flex-end; backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+.modal-bg.show { display: flex; }
+
+.modal {
+  width: 100%; background: var(--s1); border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0; padding: 20px 18px calc(20px + var(--safe-b));
+  animation: slideUp 0.25s ease both;
+}
+.modal-title { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+.modal-sub { font-family: var(--mono); font-size: 10px; color: var(--muted2); margin-bottom: 16px; line-height: 1.5; }
+
+.modal-input-wrap { background: var(--s2); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; margin-bottom: 12px; }
+.modal-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: var(--mono); font-size: 12px; padding: 13px 14px; }
+.modal-input::placeholder { color: var(--muted); }
+
+.modal-btns { display: flex; gap: 10px; }
+.modal-save { flex: 1; background: var(--accent); border: none; color: #fff; font-family: var(--syne); font-weight: 700; font-size: 14px; padding: 14px; border-radius: 10px; cursor: pointer; }
+.modal-cancel { background: var(--s2); border: 1px solid var(--border); color: var(--muted2); font-family: var(--syne); font-weight: 600; font-size: 13px; padding: 14px 18px; border-radius: 10px; cursor: pointer; }
+.modal-auto { width: 100%; background: var(--s2); border: 1px solid var(--border); color: var(--muted2); font-family: var(--mono); font-size: 11px; padding: 12px; border-radius: 10px; cursor: pointer; margin-bottom: 12px; }
+.modal-auto:active { border-color: var(--accent); color: var(--text); }
+
+/* BOTTOM BAR */
+.bottom-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 10px 16px calc(10px + var(--safe-b));
+  background: rgba(0,0,0,0.97); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+  border-top: 1px solid var(--border); z-index: 50;
+}
+.dl-btn {
+  width: 100%; background: var(--accent); border: none; color: #fff;
+  font-family: var(--syne); font-weight: 800; font-size: 15px; letter-spacing: 1px;
+  padding: 17px; border-radius: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: opacity 0.15s;
+}
+.dl-btn:active { opacity: 0.85; transform: scale(0.99); }
+.dl-btn:disabled { background: var(--s2); color: var(--muted); }
+
+/* SPINNER */
+.spin {
+  width: 17px; height: 17px; border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff; border-radius: 50%;
+  animation: rotate 0.6s linear infinite; flex-shrink: 0;
+}
+.spin.sm { width: 13px; height: 13px; }
+
+/* ANIMATIONS */
+@keyframes up { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes slideUp { from { transform:translateY(60px); opacity:0 } to { transform:translateY(0); opacity:1 } }
+@keyframes rotate { to { transform:rotate(360deg) } }
+
+/* INTRO */
+.intro { padding: 28px 18px 0; animation: up 0.5s ease both; }
+.intro-big { font-size: clamp(38px,12vw,56px); font-weight: 800; line-height: 1; letter-spacing: -1px; margin-bottom: 8px; }
+.intro-big em { color: var(--accent); font-style: normal; }
+.intro-sub { font-family: var(--mono); font-size: 11px; color: var(--muted2); line-height: 1.6; }
+
+/* SCAN LINES */
+body::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.018) 2px, rgba(0,0,0,0.018) 4px);
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="logo">YT<em>●</em>DL</div>
+    <div class="instance-pill" onclick="openModal()">
+      <div class="status-dot loading" id="statusDot"></div>
+      <span id="instanceLabel">finding server...</span>
+    </div>
+  </nav>
+
+  <div class="scroll-body">
+
+    <!-- INTRO -->
+    <div class="intro">
+      <div class="intro-big">Save<br><em>Any</em><br>Video.</div>
+      <div class="intro-sub">No app. No server.<br>Paste link → download.</div>
+    </div>
+
+    <!-- URL INPUT -->
+    <div class="url-zone" style="margin-top:24px;">
+      <div class="section-label">YouTube URL</div>
+      <div class="input-wrap" id="inputWrap">
+        <input type="url" class="url-input" id="urlInput"
+          placeholder="youtube.com/watch?v=..."
+          autocomplete="off" autocorrect="off" autocapitalize="none"
+          spellcheck="false" inputmode="url"/>
+        <button class="clear-btn" onclick="clearUrl()">✕</button>
+      </div>
+      <button class="go-btn" id="goBtn" onclick="startDownload()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        DOWNLOAD
+      </button>
+    </div>
+
+    <!-- QUALITY + MODE -->
+    <div class="options-row" style="margin-top:16px; flex-direction:column; gap:14px; padding: 0 16px;">
+      <div>
+        <div class="section-label" style="margin-bottom:9px;">Quality</div>
+        <div class="chip-scroll" id="qualityChips"></div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-bottom:9px;">Mode</div>
+        <div class="chip-scroll" id="modeChips"></div>
+      </div>
+    </div>
+
+    <!-- TOASTS -->
+    <div class="toast err" id="errToast"></div>
+    <div class="toast warn" id="warnToast"></div>
+    <div class="toast ok" id="okToast"></div>
+
+    <!-- PROGRESS -->
+    <div class="prog-card" id="progCard">
+      <div class="prog-top">
+        <div class="prog-label active" id="progLabel">Connecting</div>
+        <div class="prog-pct" id="progPct">—</div>
+      </div>
+      <div class="prog-track">
+        <div class="prog-fill" id="progFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="history" id="historySection">
+      <div class="hist-head">Downloaded</div>
+      <div id="histList"></div>
+    </div>
+
+  </div><!-- /scroll-body -->
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <button class="dl-btn" id="dlBtn" onclick="startDownload()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      DOWNLOAD
+    </button>
+  </div>
+
+</div><!-- /shell -->
+
+<!-- INSTANCE MODAL -->
+<div class="modal-bg" id="modalBg" onclick="closeModalBg(event)">
+  <div class="modal">
+    <div class="modal-title">Processing Server</div>
+    <div class="modal-sub" id="modalSub">Using a community cobalt instance.<br>If downloads fail, tap "Auto-Find" or paste your own.</div>
+    <button class="modal-auto" id="autoBtn" onclick="autoFindInstance()">
+      ⟳  Auto-find working instance
+    </button>
+    <div class="modal-input-wrap">
+      <input class="modal-input" id="instanceInput" type="url"
+        placeholder="https://your-cobalt-instance.com" autocapitalize="none"/>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-save" onclick="saveInstance()">Save & Test</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────
+const INSTANCES_API = 'https://instances.cobalt.best/api';
+const QUALITY_OPTIONS = [
+  { label: '2160p', val: '2160' },
+  { label: '1440p', val: '1440' },
+  { label: '1080p', val: '1080' },
+  { label: '720p',  val: '720'  },
+  { label: '480p',  val: '480'  },
+  { label: '360p',  val: '360'  },
+];
+const MODE_OPTIONS = [
+  { label: 'Video + Audio', val: 'auto'  },
+  { label: 'Audio Only',    val: 'audio' },
+  { label: 'Video Muted',   val: 'mute'  },
+];
+
+// ── STATE ────────────────────────────────
+let instanceUrl = localStorage.getItem('cobalt_instance') || '';
+let selectedQuality = localStorage.getItem('cobalt_quality') || '1080';
+let selectedMode    = localStorage.getItem('cobalt_mode')    || 'auto';
+let history = JSON.parse(localStorage.getItem('ytdl_history') || '[]');
+
+// ── CHIPS ────────────────────────────────
+function buildChips() {
+  const qc = document.getElementById('qualityChips');
+  const mc = document.getElementById('modeChips');
+
+  qc.innerHTML = QUALITY_OPTIONS.map(o =>
+    `<button class="chip${o.val===selectedQuality?' sel':''}" data-q="${o.val}" onclick="pickQuality('${o.val}')">${o.label}</button>`
+  ).join('');
+
+  mc.innerHTML = MODE_OPTIONS.map(o =>
+    `<button class="chip${o.val===selectedMode?' sel':''}" data-m="${o.val}" onclick="pickMode('${o.val}')">${o.label}</button>`
+  ).join('');
+}
+
+function pickQuality(v) {
+  selectedQuality = v;
+  localStorage.setItem('cobalt_quality', v);
+  document.querySelectorAll('[data-q]').forEach(c => c.classList.toggle('sel', c.dataset.q === v));
+  if (navigator.vibrate) navigator.vibrate(20);
+}
+
+function pickMode(v) {
+  selectedMode = v;
+  localStorage.setItem('cobalt_mode', v);
+  document.querySelectorAll('[data-m]').forEach(c => c.classList.toggle('sel', c.dataset.m === v));
+  if (navigator.vibrate) navigator.vibrate(20);
+}
+
+// ── INSTANCE FINDER ──────────────────────
+async function findBestInstance() {
+  setStatus('loading', 'finding...');
+  try {
+    const res = await fetch(INSTANCES_API, { signal: AbortSignal.timeout(8000) });
+    const list = await res.json();
+    // Filter: online, cors true, no auth, youtube support
+    const candidates = list.filter(i =>
+      i.online &&
+      i.info?.cors === true &&
+      i.info?.auth === false &&
+      i.services?.youtube === true &&
+      i.protocol === 'https'
+    );
+    // Sort by score desc
+    candidates.sort((a, b) => (b.score || 0) - (a.score || 0));
+    for (const c of candidates.slice(0, 5)) {
+      const url = `${c.protocol}://${c.api}`;
+      const ok = await testInstance(url);
+      if (ok) {
+        instanceUrl = url;
+        localStorage.setItem('cobalt_instance', url);
+        const short = c.api.replace('api.','').split('.')[0];
+        setStatus('ok', short);
+        return true;
+      }
+    }
+    setStatus('err', 'no server');
+    return false;
+  } catch(e) {
+    setStatus('err', 'lookup failed');
+    return false;
+  }
+}
+
+async function testInstance(url) {
+  try {
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000)
+    });
+    const data = await res.json();
+    return !!data.cobalt;
+  } catch { return false; }
+}
+
+function setStatus(state, label) {
+  const dot = document.getElementById('statusDot');
+  const lbl = document.getElementById('instanceLabel');
+  dot.className = 'status-dot ' + state;
+  lbl.textContent = label;
+}
+
+// ── DOWNLOAD ─────────────────────────────
+async function startDownload() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { showErr('Paste a YouTube URL first.'); return; }
+  if (!instanceUrl) {
+    showWarn('Finding a server, please wait…');
+    const ok = await findBestInstance();
+    if (!ok) { showErr('No working server found. Tap the server pill to set one manually.'); return; }
+  }
+
+  hideAll();
+  setBusy(true);
+  showProg('Connecting…', 0);
+
+  try {
+    const body = {
+      url,
+      videoQuality: selectedQuality,
+      downloadMode: selectedMode,
+      audioFormat: 'mp3',
+      audioBitrate: '192',
+      youtubeVideoCodec: 'h264',
+      filenameStyle: 'pretty',
+    };
+
+    showProg('Sending request…', 15);
+
+    const res = await fetch(`${instanceUrl}/`, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20000)
+    });
+
+    showProg('Processing…', 50);
+
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+    const data = await res.json();
+    handleResponse(data, url);
+
+  } catch(e) {
+    hideProg();
+    setBusy(false);
+    if (e.name === 'TimeoutError') {
+      showErr('Request timed out. Try another server via the pill at the top.');
+    } else {
+      showErr(e.message || 'Download failed.');
+    }
+  }
+}
+
+function handleResponse(data, originalUrl) {
+  if (data.status === 'error') {
+    hideProg();
+    setBusy(false);
+    const code = data.error?.code || 'Unknown error';
+    if (code.includes('rate')) showErr('Rate limited by server. Tap the pill to switch server.');
+    else if (code.includes('auth')) showErr('This server requires authentication.');
+    else showErr('Error: ' + code);
+    return;
+  }
+
+  if (data.status === 'redirect' || data.status === 'tunnel') {
+    showProg('Opening download…', 90);
+    const link = document.createElement('a');
+    link.href = data.url;
+    link.download = data.filename || 'video';
+    link.target = '_blank';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      showProg('Done!', 100, true);
+      setBusy(false);
+      if (navigator.vibrate) navigator.vibrate([50, 30, 80]);
+      addHistory(data.filename || 'download', selectedMode === 'audio' ? 'MP3' : selectedQuality + 'p');
+      setTimeout(hideProg, 3000);
+    }, 600);
+
+  } else if (data.status === 'picker') {
+    hideProg();
+    setBusy(false);
+    showWarn('This link has multiple items. Opening cobalt.tools for manual selection…');
+    setTimeout(() => window.open(`https://cobalt.tools`, '_blank'), 1200);
+  } else {
+    hideProg();
+    setBusy(false);
+    showErr('Unexpected response from server.');
+  }
+}
+
+// ── UI HELPERS ───────────────────────────
+function setBusy(v) {
+  const g = document.getElementById('goBtn');
+  const d = document.getElementById('dlBtn');
+  if (v) {
+    g.disabled = true;
+    g.innerHTML = '<span class="spin"></span>';
+    d.disabled = true;
+    d.innerHTML = '<span class="spin"></span>';
+  } else {
+    g.disabled = false;
+    g.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> DOWNLOAD`;
+    d.disabled = false;
+    d.innerHTML = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> DOWNLOAD`;
+  }
+}
+
+function showProg(label, pct, done=false) {
+  const card = document.getElementById('progCard');
+  card.classList.add('show');
+  const lbl = document.getElementById('progLabel');
+  lbl.textContent = label;
+  lbl.className = 'prog-label ' + (done ? 'done' : 'active');
+  document.getElementById('progPct').textContent = pct + '%';
+  const fill = document.getElementById('progFill');
+  fill.style.width = pct + '%';
+  fill.className = 'prog-fill' + (done ? ' done' : '');
+}
+function hideProg() { document.getElementById('progCard').classList.remove('show'); }
+
+function hideAll() { ['errToast','warnToast','okToast'].forEach(id => { document.getElementById(id).style.display='none'; }); }
+function showErr(m) { const t = document.getElementById('errToast'); t.textContent = '⚠ '+m; t.style.display='block'; }
+function showWarn(m) { const t = document.getElementById('warnToast'); t.textContent = '⚡ '+m; t.style.display='block'; }
+function showOk(m)  { const t = document.getElementById('okToast'); t.textContent = '✓ '+m; t.style.display='block'; }
+
+function clearUrl() {
+  const inp = document.getElementById('urlInput');
+  inp.value = '';
+  inp.focus();
+  hideAll();
+  hideProg();
+}
+
+// ── URL INPUT ────────────────────────────
+const urlInput = document.getElementById('urlInput');
+urlInput.addEventListener('focus', () => document.getElementById('inputWrap').classList.add('focused'));
+urlInput.addEventListener('blur', () => document.getElementById('inputWrap').classList.remove('focused'));
+urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); startDownload(); } });
+
+// ── HISTORY ──────────────────────────────
+function addHistory(filename, quality) {
+  history.unshift({ filename: filename.replace(/\.[^.]+$/, ''), quality, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) });
+  if (history.length > 10) history.pop();
+  localStorage.setItem('ytdl_history', JSON.stringify(history));
+  renderHistory();
+}
+
+function renderHistory() {
+  if (!history.length) return;
+  document.getElementById('historySection').classList.add('show');
+  document.getElementById('histList').innerHTML = history.slice(0, 5).map(h => `
+    <div class="h-item">
+      <div class="h-icon">↓</div>
+      <div class="h-body">
+        <div class="h-title">${h.filename}</div>
+        <div class="h-meta">${h.quality} · ${h.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── MODAL ────────────────────────────────
+function openModal() {
+  document.getElementById('instanceInput').value = instanceUrl;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal() { document.getElementById('modalBg').classList.remove('show'); }
+function closeModalBg(e) { if (e.target === document.getElementById('modalBg')) closeModal(); }
+
+async function autoFindInstance() {
+  const btn = document.getElementById('autoBtn');
+  btn.textContent = '⟳  Searching…';
+  btn.disabled = true;
+  const ok = await findBestInstance();
+  if (ok) {
+    document.getElementById('instanceInput').value = instanceUrl;
+    document.getElementById('modalSub').textContent = '✓ Found: ' + instanceUrl;
+    btn.textContent = '✓ Found a working instance';
+  } else {
+    btn.textContent = '⚠ None found — paste one manually';
+  }
+  btn.disabled = false;
+}
+
+async function saveInstance() {
+  const val = document.getElementById('instanceInput').value.trim().replace(/\/$/, '');
+  if (!val) return;
+  const btn = document.querySelector('.modal-save');
+  btn.textContent = 'Testing…';
+  btn.disabled = true;
+  const ok = await testInstance(val);
+  if (ok) {
+    instanceUrl = val;
+    localStorage.setItem('cobalt_instance', val);
+    const short = val.replace('https://','').replace('http://','').split('/')[0].split('.')[0];
+    setStatus('ok', short);
+    closeModal();
+    showOk('Server saved and working.');
+  } else {
+    showErr('Could not reach that server. Try another.');
+  }
+  btn.textContent = 'Save & Test';
+  btn.disabled = false;
+}
+
+// ── INIT ─────────────────────────────────
+buildChips();
+renderHistory();
+
+(async () => {
+  if (instanceUrl) {
+    const ok = await testInstance(instanceUrl);
+    if (ok) {
+      const short = instanceUrl.replace('https://','').replace('http://','').split('/')[0].split('.')[0];
+      setStatus('ok', short);
+    } else {
+      instanceUrl = '';
+      localStorage.removeItem('cobalt_instance');
+      await findBestInstance();
+    }
+  } else {
+    await findBestInstance();
+  }
+})();
+</script>
+</body>
+</html>
