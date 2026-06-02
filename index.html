@@ -340,7 +340,20 @@ body::after {
 
 <script>
 // ── CONFIG ───────────────────────────────
-const INSTANCES_API = 'https://instances.cobalt.best/api';
+// instances.cobalt.best blocks browsers — route through corsproxy.io
+const INSTANCES_API = 'https://corsproxy.io/?url=' + encodeURIComponent('https://instances.cobalt.best/api');
+
+// Hardcoded fallback pool — tested in order if the live list fails
+const FALLBACK_INSTANCES = [
+  'https://cobalt.api.timelessnesses.com',
+  'https://cobalt.drgns.space',
+  'https://cobalt.canine.tools',
+  'https://co.wuk.sh',
+  'https://cobalt.catvibers.me',
+  'https://cobalt.ayo.tf',
+  'https://cobalt.ritsuka.ai',
+  'https://cobalt.nptr.cc',
+];
 const QUALITY_OPTIONS = [
   { label: '2160p', val: '2160' },
   { label: '1440p', val: '1440' },
@@ -392,10 +405,11 @@ function pickMode(v) {
 // ── INSTANCE FINDER ──────────────────────
 async function findBestInstance() {
   setStatus('loading', 'finding...');
+
+  // Try live instances list first (via CORS proxy)
   try {
     const res = await fetch(INSTANCES_API, { signal: AbortSignal.timeout(8000) });
     const list = await res.json();
-    // Filter: online, cors true, no auth, youtube support
     const candidates = list.filter(i =>
       i.online &&
       i.info?.cors === true &&
@@ -403,9 +417,8 @@ async function findBestInstance() {
       i.services?.youtube === true &&
       i.protocol === 'https'
     );
-    // Sort by score desc
     candidates.sort((a, b) => (b.score || 0) - (a.score || 0));
-    for (const c of candidates.slice(0, 5)) {
+    for (const c of candidates.slice(0, 6)) {
       const url = `${c.protocol}://${c.api}`;
       const ok = await testInstance(url);
       if (ok) {
@@ -416,12 +429,22 @@ async function findBestInstance() {
         return true;
       }
     }
-    setStatus('err', 'no server');
-    return false;
-  } catch(e) {
-    setStatus('err', 'lookup failed');
-    return false;
+  } catch(e) { /* live list failed, fall through to hardcoded */ }
+
+  // Fallback: try hardcoded list directly
+  for (const url of FALLBACK_INSTANCES) {
+    const ok = await testInstance(url);
+    if (ok) {
+      instanceUrl = url;
+      localStorage.setItem('cobalt_instance', url);
+      const short = url.replace('https://','').split('.')[0].replace('cobalt','cblt');
+      setStatus('ok', short);
+      return true;
+    }
   }
+
+  setStatus('err', 'no server');
+  return false;
 }
 
 async function testInstance(url) {
